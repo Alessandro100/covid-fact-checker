@@ -7,8 +7,8 @@ word_dict = {}
 
 # finds the features to use for the Naive Bayes classifer
 with open("data/covid_training.tsv") as fd:
-    print('start')
     rd = csv.reader(fd, delimiter="\t", quotechar='"')
+    next(rd) # skips the header
     for row in rd:
         text_list = row[1].split(" ")
         for word in text_list:
@@ -17,7 +17,6 @@ with open("data/covid_training.tsv") as fd:
                 word_dict[formatted_word] = word_dict[formatted_word] + 1
             else:
                 word_dict[formatted_word] =  1
-
 
 original_vocabulary = []
 filtered_vocabulary = []
