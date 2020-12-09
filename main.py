@@ -104,38 +104,39 @@ def create_vocabulary():
     class_1_prior = len(class_1_tweet_list) /(len(class_1_tweet_list) + len(class_2_tweet_list))
     class_2_prior = len(class_2_tweet_list) /(len(class_1_tweet_list) + len(class_2_tweet_list))
     
-    score_class_1 = train_nb_classifier(class_1_word_dict,len(original_vocabulary))
-    score_class_1_filtered = train_nb_classifier(class_1_filtered_word_dict, len(filtered_vocabulary))
-    score_class_2 = train_nb_classifier(class_2_word_dict, len(original_vocabulary))
-    score_class_2_filtered = train_nb_classifier(class_2_filtered_word_dict, len(filtered_vocabulary))
+    score_class_1 = train_nb_classifier(class_1_word_dict,original_vocabulary)
+    score_class_1_filtered = train_nb_classifier(class_1_filtered_word_dict, filtered_vocabulary)
+    score_class_2 = train_nb_classifier(class_2_word_dict, original_vocabulary)
+    score_class_2_filtered = train_nb_classifier(class_2_filtered_word_dict, filtered_vocabulary)
     
-
-    class_1_info = [class_1_prior, score_class_1, score_class_1_filtered, class_1_word_dict, class_1_filtered_word_dict, len(original_vocabulary)]
-    class_2_info = [class_2_prior, score_class_2, score_class_2_filtered, class_2_word_dict, class_2_filtered_word_dict, len(filtered_vocabulary)]
+    nb_test(class_1_prior, score_class_1, class_1_word_dict,{1515155:['Trump', 'REEE', 'get', 'process', 'vaccine']}, original_vocabulary)
+    class_1_info = [class_1_prior, score_class_1, score_class_1_filtered, class_1_word_dict, class_1_filtered_word_dict,original_vocabulary]
+    class_2_info = [class_2_prior, score_class_2, score_class_2_filtered, class_2_word_dict, class_2_filtered_word_dict, filtered_vocabulary]
     return [class_1_info, class_2_info]
 
 # Inputs are class dictionnary {w: # of appearences}
 # Output is the score of each word for the class {w: score_for_class}
-def train_nb_classifier(class_dictionnary,vocabulary_size):
+def train_nb_classifier(class_dictionnary,vocabulary):
     scores = {}
     for w in class_dictionnary:
-        score = math.log10((class_dictionnary[w]+0.01)/(sum(class_dictionnary.values())+vocabulary_size*0.01))
+        score = math.log10((class_dictionnary[w]+0.01)/(sum(class_dictionnary.values())+len(vocabulary)*0.01))
         scores[w] = score
     return scores
 
 # Inputs are the class prior (float), class scores { word : class_score },class_dictionnary,tweet as list of word ie['get', 'me', 'out']
 # Output is score of class for tested tweet
-def nb_test(class_prior, class_scores, class_dictionnary, tweet, vocabulary_size):
+def nb_test(class_prior, class_scores, class_dictionnary, tweet, vocabulary):
     score = math.log10(class_prior)
     for word in tweet:
-        if word in class_scores:
-            score += class_scores[word]
-        else:
-            score += math.log10(0.01/(sum(class_dictionnary.values())+vocabulary_size*0.01))
+        if word in vocabulary:
+            if word in class_scores:
+                score += class_scores[word] 
+            else:
+                score += math.log10(0.01/(sum(class_dictionnary.values())+len(vocabulary)*0.01))
     return score
 
 # No inputs
-# Output is list of tweets(list) of words ie [['x','c',d'], ['a', 'for', 'lame']]
+# Output is a dict of tweets of words ie {1232312651: ['This', 'is', 'a', 'tweet', 'yeah', 'dude']}
 def get_testing_set():
     tokenised_tweets= {}
     with open("data/covid_test_public.tsv", encoding="utf-8") as fd:
@@ -147,19 +148,20 @@ def get_testing_set():
 def main():
     
     tokenised_tweets_to_classify = get_testing_set() 
-    class_infos = create_vocabulary()
-
+    class_infos = create_vocabulary()   
+    print(tokenised_tweets_to_classify)
+    
     for tweet in tokenised_tweets_to_classify:
-       if(nb_test(class_infos[0][0],class_infos[0][1],  class_infos[0][3],tweet, class_infos[0][5] ) > nb_test(class_infos[1][0],class_infos[1][1], class_infos[1][3], tweet, class_infos[0][5])):
-           print("Tweet # ", tweet, "classified as verifiable factual information",nb_test(class_infos[0][0],class_infos[0][1], class_infos[0][3], tweet, class_infos[0][5]), "vs ", nb_test(class_infos[1][0],class_infos[1][1], class_infos[1][3] ,tweet, class_infos[0][5]) )
+       if(nb_test(class_infos[0][0],class_infos[0][1],  class_infos[0][3],tokenised_tweets_to_classify[tweet], class_infos[0][5] ) > nb_test(class_infos[1][0],class_infos[1][1], class_infos[1][3], tokenised_tweets_to_classify[tweet], class_infos[0][5])):
+           print("Tweet # ", tweet, "classified as verifiable factual information",nb_test(class_infos[0][0],class_infos[0][1], class_infos[0][3], tokenised_tweets_to_classify[tweet], class_infos[0][5]), "vs ", nb_test(class_infos[1][0],class_infos[1][1], class_infos[1][3] ,tokenised_tweets_to_classify[tweet], class_infos[0][5]) )
        else: 
-           print("Tweet # ", tweet, "classified as non-verifiable factual information")
+           print("Tweet # ", tweet, "classified as non-verifiable factual information",nb_test(class_infos[0][0],class_infos[0][1], class_infos[0][3], tokenised_tweets_to_classify[tweet], class_infos[0][5]), "vs ", nb_test(class_infos[1][0],class_infos[1][1], class_infos[1][3] ,tokenised_tweets_to_classify[tweet], class_infos[0][5]) )
     print("\n now for filtered vocabulary \n")      
     for tweet in tokenised_tweets_to_classify:
-       if(nb_test(class_infos[0][0],class_infos[0][2],  class_infos[0][4],tweet, class_infos[1][5]) > nb_test(class_infos[1][0],class_infos[1][2], class_infos[1][4],tweet, class_infos[1][5])):
-           print("Tweet # ", tweet, "classified as verifiable factual information",nb_test(class_infos[0][0],class_infos[0][2], class_infos[0][4],tweet, class_infos[1][5]), "vs ", nb_test(class_infos[1][0],class_infos[1][2], class_infos[1][4],tweet, class_infos[1][5]) )
+       if(nb_test(class_infos[0][0],class_infos[0][2],  class_infos[0][4],tokenised_tweets_to_classify[tweet], class_infos[1][5]) > nb_test(class_infos[1][0],class_infos[1][2], class_infos[1][4],tokenised_tweets_to_classify[tweet], class_infos[1][5])):
+           print("Tweet # ", tweet, "classified as verifiable factual information",nb_test(class_infos[0][0],class_infos[0][2], class_infos[0][4],tokenised_tweets_to_classify[tweet], class_infos[1][5]), "vs ", nb_test(class_infos[1][0],class_infos[1][2], class_infos[1][4],tokenised_tweets_to_classify[tweet], class_infos[1][5]) )
        else: 
-           print("Tweet # ", tweet, "classified as non-verifiable factual information")
+           print("Tweet # ", tweet, "classified as non-verifiable factual information",nb_test(class_infos[0][0],class_infos[0][1], class_infos[0][3], tokenised_tweets_to_classify[tweet], class_infos[0][5]), "vs ", nb_test(class_infos[1][0],class_infos[1][1], class_infos[1][3] ,tokenised_tweets_to_classify[tweet], class_infos[0][5]) )
         
 
 main()
